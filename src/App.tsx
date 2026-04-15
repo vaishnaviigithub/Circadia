@@ -17,13 +17,19 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [profileErrors, setProfileErrors] = useState<{
+    name?: string;
+    age?: string;
+    height?: string;
+    weight?: string;
+  }>({});
   const [userConfig, setUserConfig] = useState<UserConfig>({
     gender: 'male',
     age: 25,
     hasHighIrregularity: false,
     height: 175,
     weight: 70,
-    name: 'Alex'
+    name: 'Raj'
   });
   const [dataSource, setDataSource] = useState<DataSource>('sensors');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -77,8 +83,38 @@ export default function App() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateProfile = () => {
+    let newErrors: any = {};
+  
+    // Name validation
+    if (!userConfig.name || userConfig.name.trim().length < 2) {
+      newErrors.name = 'Enter a valid name';
+    } else if (/^\d/.test(userConfig.name)) {
+      newErrors.name = 'Name should not start with a number';
+    }
+  
+    // Age validation
+    if (!userConfig.age || userConfig.age < 10 || userConfig.age > 100) {
+      newErrors.age = 'Enter valid age (10–100)';
+    }
+  
+    // Height validation
+    if (!userConfig.height || userConfig.height < 100 || userConfig.height > 250) {
+      newErrors.height = 'Enter valid height (100–250 cm)';
+    }
+  
+    // Weight validation
+    if (!userConfig.weight || userConfig.weight < 30 || userConfig.weight > 200) {
+      newErrors.weight = 'Enter valid weight (30–200 kg)';
+    }
+  
+    setProfileErrors(newErrors);
+  
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleConnect = async () => {
-    // Validate: if manual mode, a file must be selected
+    
     if (dataSource === 'manual' && !uploadedFile) {
       setUploadError('Please select a CSV file before starting analysis.');
       return;
@@ -94,24 +130,23 @@ export default function App() {
         let configOverrides = {};
   
         if (dataSource === 'manual' && uploadedFile) {
-          // ── Parse uploaded CSV ──────────────────────────────────────────
+          // Parse uploaded CSV 
           const { data, userConfigOverrides, warnings } = await parseUploadedCSV(uploadedFile);
           rawData = data;
           configOverrides = userConfigOverrides;
           setParseWarnings(warnings);
   
           // Apply demographic overrides from CSV (age, gender, height, weight)
-          // so the analytics use the correct age-stratified targets
           if (Object.keys(userConfigOverrides).length > 0) {
             setUserConfig(prev => ({ ...prev, ...userConfigOverrides }));
           }
         } else {
-          // ── Fallback: generate simulated data ──────────────────────────
+          // Fallback: generate simulated data 
           rawData = generateSimulatedData(requiredDays);
           downloadAsCSV(rawData);
         }
   
-        // Pass effective age (CSV override takes priority) to analytics
+        // Pass effective age to analytics
         const effectiveAge = (configOverrides as any).age ?? userConfig.age;
   
         const { profile, dailyMetrics, hourlyActivity, hourlyScreen } = analyzeCircadianData(rawData, effectiveAge);
@@ -124,7 +159,7 @@ export default function App() {
         setUploadError(err?.message ?? 'Analysis failed. Please check your file and try again.');
         setState('data_source');
       }
-    }, 100); // minimal delay — CSV parsing replaces the 3s simulated wait
+    }, 100); // minimal delay
   };
 
   const renderBottomNav = () => (
@@ -257,15 +292,33 @@ export default function App() {
             </div>
 
             <div className="w-full space-y-6 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Name</label>
-                <input
-                  type="text"
-                  value={userConfig.name}
-                  onChange={(e) => setUserConfig({ ...userConfig, name: e.target.value })}
-                  className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Name</label>
+              <input
+                type="text"
+                value={userConfig.name}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setUserConfig({ ...userConfig, name: value });
+                
+                  if (!value || value.trim().length < 2) {
+                    setProfileErrors(prev => ({ ...prev, name: 'Enter a valid name' }));
+                  } else if (/^\d/.test(value)) {
+                    setProfileErrors(prev => ({ ...prev, name: 'Name should not start with a number' }));
+                  } else {
+                    setProfileErrors(prev => {
+                      const updated = { ...prev };
+                      delete updated.name;
+                      return updated;
+                    });
+                  }
+                }}
+                className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              />
+              {profileErrors.name && (
+                <p className="text-red-500 text-xs">{profileErrors.name}</p>
+              )}
+            </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Gender</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -291,19 +344,43 @@ export default function App() {
                   <input
                     type="number"
                     value={userConfig.age}
-                    onChange={(e) => setUserConfig({ ...userConfig, age: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      setUserConfig({ ...userConfig, age: value });
+                    
+                      if (value < 10 || value > 100) {
+                        setProfileErrors(prev => ({ ...prev, age: 'Enter valid age (10–100)' }));
+                      } else {
+                        setProfileErrors(prev => ({ ...prev, age: '' }));
+                      }
+                    }}
                     className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
-                </div>
+                    />
+                      {profileErrors.age && (
+                        <p className="text-red-500 text-xs">{profileErrors.age}</p>
+                      )}
+                    </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Height (cm)</label>
                   <input
                     type="number"
                     value={userConfig.height}
-                    onChange={(e) => setUserConfig({ ...userConfig, height: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      setUserConfig({ ...userConfig, height: value });
+                    
+                      if (value < 100 || value > 250) {
+                        setProfileErrors(prev => ({ ...prev, height: 'Enter valid height (100–250 cm)' }));
+                      } else {
+                        setProfileErrors(prev => ({ ...prev, height: '' }));
+                      }
+                    }}
                     className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
-                </div>
+                    />
+                    {profileErrors.height && (
+                      <p className="text-red-500 text-xs">{profileErrors.height}</p>
+                    )}
+                  </div>
               </div>
 
               <div className="space-y-2">
@@ -311,13 +388,28 @@ export default function App() {
                 <input
                   type="number"
                   value={userConfig.weight}
-                  onChange={(e) => setUserConfig({ ...userConfig, weight: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setUserConfig({ ...userConfig, weight: value });
+                  
+                    if (value < 30 || value > 200) {
+                      setProfileErrors(prev => ({ ...prev, weight: 'Enter valid weight (30–200 kg)' }));
+                    } else {
+                      setProfileErrors(prev => ({ ...prev, weight: '' }));
+                    }
+                  }}
                   className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-              </div>
+                  />
+                  {profileErrors.weight && (
+                    <p className="text-red-500 text-xs">{profileErrors.weight}</p>
+                  )}
+                </div>
 
               <button
-                onClick={() => setState('data_source')}
+                onClick={() => {
+                  if (!validateProfile()) return;
+                  setState('data_source');
+                }}
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
               >
                 Next Step
