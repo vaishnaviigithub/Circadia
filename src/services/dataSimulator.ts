@@ -1,7 +1,8 @@
 import { BehavioralDataPoint } from '../types';
 import { UserConfig } from '../types';
 
-const REQUIRED_COLS = ['timestamp', 'activitylevel', 'isscreenon'];
+const REQUIRED_COLS = ['timestamp', 'isscreenon'];
+// If AccelX, AccelY, AccelZ are present, activityLevel is computed; otherwise, activityLevel is required
 // PlannedSleepTime, PlannedWakeTime, AccelX, AccelY, AccelZ
 
 function normalizeHeader(h: string): string {
@@ -26,6 +27,16 @@ export async function parseUploadedCSV(file: File): Promise<ParseResult> {
   const headers = rawHeaders.map(normalizeHeader);
 
   // Validate required columns
+  const hasActivityLevel = headers.includes('activitylevel');
+  const hasAccel = headers.includes('accelx') && headers.includes('accely') && headers.includes('accelz');
+  
+  if (!hasActivityLevel && !hasAccel) {
+    throw new Error(
+      `CSV must have either 'ActivityLevel' column or all three accelerometer columns: 'AccelX', 'AccelY', 'AccelZ'.\n` +
+      `Found columns: ${rawHeaders.join(', ')}`
+    );
+  }
+  
   const missing = REQUIRED_COLS.filter(req => !headers.includes(req));
   if (missing.length > 0) {
     throw new Error(
@@ -37,7 +48,7 @@ export async function parseUploadedCSV(file: File): Promise<ParseResult> {
   const idx = (name: string): number => headers.indexOf(normalizeHeader(name));
 
   const tsIdx        = idx('Timestamp');
-  const actIdx       = idx('ActivityLevel');
+  const actIdx       = hasActivityLevel ? idx('ActivityLevel') : -1;
   const screenIdx    = idx('IsScreenOn');
   const sleepTIdx    = idx('PlannedSleepTime');
   const wakeTIdx     = idx('PlannedWakeTime');
@@ -90,10 +101,16 @@ export async function parseUploadedCSV(file: File): Promise<ParseResult> {
         continue;
       }
 
-      const activityLevel = parseFloat(cols[actIdx].trim());
-      if (isNaN(activityLevel)) {
-        skipped++;
-        continue;
+      let activityLevel: number;
+      if (hasActivityLevel) {
+        activityLevel = parseFloat(cols[actIdx].trim());
+        if (isNaN(activityLevel)) {
+          skipped++;
+          continue;
+        }
+      } else {
+        // Will be computed later from accel
+        activityLevel = 0;
       }
 
       const screenRaw = cols[screenIdx].trim().toLowerCase();
@@ -105,6 +122,9 @@ export async function parseUploadedCSV(file: File): Promise<ParseResult> {
         isScreenOn,
         sleepTime: sleepTIdx >= 0 ? cols[sleepTIdx]?.trim() : undefined,
         wakeTime:  wakeTIdx  >= 0 ? cols[wakeTIdx]?.trim()  : undefined,
+        accelX: accelXIdx >= 0 ? parseFloat(cols[accelXIdx]?.trim()) : undefined,
+        accelY: accelYIdx >= 0 ? parseFloat(cols[accelYIdx]?.trim()) : undefined,
+        accelZ: accelZIdx >= 0 ? parseFloat(cols[accelZIdx]?.trim()) : undefined,
       };
 
       data.push(point);
@@ -131,7 +151,7 @@ export async function extractUserConfigFromCSV(file: File): Promise<Partial<User
   return userConfigOverrides;
 }
 
-import { addDays, setHours, setMinutes, subDays, startOfDay, endOfDay, addMinutes } from 'date-fns';
+import { addDays, setHours, setMinutes, subDays, startOfDay, endOfDay, addMinutes, addHours } from 'date-fns';
 
 export function generateSimulatedData(days: number = 18): BehavioralDataPoint[] {
   const data: BehavioralDataPoint[] = [];
@@ -160,6 +180,9 @@ export function generateSimulatedData(days: number = 18): BehavioralDataPoint[] 
 
         let activityLevel = 0;
         let isScreenOn = false;
+        let accelX: number | undefined;
+        let accelY: number | undefined;
+        let accelZ: number | undefined;
 
         if (!isSleeping) {
           const peakHour = (dayWakeTime + 7) % 24;
@@ -171,14 +194,24 @@ export function generateSimulatedData(days: number = 18): BehavioralDataPoint[] 
           activityLevel = Math.max(0.1, 1 - (distFromPeak / 12)) * (0.4 + Math.random() * 0.6) * sleepQualityFactor;
           const screenProb = hour > 18 ? 0.85 : 0.25;
           isScreenOn = Math.random() < screenProb;
+          // Simulate accel: base 9.81 + activity noise
+          const baseAccel = 9.81;
+          const activityNoise = activityLevel * 5; // arbitrary
+          accelX = baseAccel + (Math.random() - 0.5) * activityNoise;
+          accelY = (Math.random() - 0.5) * activityNoise;
+          accelZ = (Math.random() - 0.5) * activityNoise;
         } else {
           activityLevel = Math.random() < 0.08 ? Math.random() * 0.15 : 0;
           if ((hour >= 22 || hour < 2) && hour < daySleepStart) {
             isScreenOn = Math.random() < 0.75;
           }
+          // During sleep, accel around 9.81 with small noise
+          accelX = 9.81 + (Math.random() - 0.5) * 0.1;
+          accelY = (Math.random() - 0.5) * 0.1;
+          accelZ = (Math.random() - 0.5) * 0.1;
         }
 
-        data.push({ timestamp, activityLevel, isScreenOn, sleepTime: sleepTimeStr, wakeTime: wakeTimeStr });
+        data.push({ timestamp, activityLevel, isScreenOn, sleepTime: sleepTimeStr, wakeTime: wakeTimeStr, accelX, accelY, accelZ });
       }
     }
   }
@@ -187,13 +220,16 @@ export function generateSimulatedData(days: number = 18): BehavioralDataPoint[] 
 }
 
 export function downloadAsCSV(data: BehavioralDataPoint[]) {
-  const headers = ['Timestamp', 'ActivityLevel', 'IsScreenOn', 'PlannedSleepTime', 'PlannedWakeTime'];
+  const headers = ['Timestamp', 'ActivityLevel', 'IsScreenOn', 'PlannedSleepTime', 'PlannedWakeTime', 'AccelX', 'AccelY', 'AccelZ'];
   const rows = data.map(p => [
     p.timestamp.toISOString(),
     p.activityLevel.toFixed(4),
     p.isScreenOn ? '1' : '0',
     p.sleepTime || '',
-    p.wakeTime || ''
+    p.wakeTime || '',
+    p.accelX?.toFixed(4) || '',
+    p.accelY?.toFixed(4) || '',
+    p.accelZ?.toFixed(4) || ''
   ]);
 
   const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
@@ -206,10 +242,4 @@ export function downloadAsCSV(data: BehavioralDataPoint[]) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-}
-
-function addHours(date: Date, hours: number): Date {
-  const d = new Date(date);
-  d.setHours(hours);
-  return d;
 }
