@@ -1,0 +1,7 @@
+{
+    "name": "Remix: Circadia",
+    "description": "Personalized circadian profiling app that analyzes behavioral data (activity, screen usage) to create biological clock profiles with dynamic data collection based on age and gender.",
+    "requestFramePermissions": [
+      "geolocation"
+    ]
+  }
