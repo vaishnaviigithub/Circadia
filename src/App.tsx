@@ -14,6 +14,9 @@ type AppState = 'landing' | 'login' | 'signup' | 'profile_setup' | 'data_source'
 export default function App() {
   const [state, setState] = useState<AppState>('landing');
   const [isDoctorViewOpen, setIsDoctorViewOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [userConfig, setUserConfig] = useState<UserConfig>({
     gender: 'male',
     age: 25,
@@ -35,7 +38,7 @@ export default function App() {
   } | null>(null);
 
   const calculateRequiredDays = (config: UserConfig) => {
-    let days = 18; // Default: standard adult (Section 2.2)
+    let days = 18; // Default: standard adult
 
     if (config.gender === 'female' && config.age >= 12 && config.age <= 50) {
       days = 35; // Menstrual cycle context — captures full 28-day cycle
@@ -52,6 +55,26 @@ export default function App() {
     }
 
     return days;
+  };
+
+  const validateAuth = () => {
+    let newErrors: { email?: string; password?: string } = {};
+  
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      newErrors.email = 'Enter correct email id';
+    }
+  
+    // Password validation 
+    const passwordRegex = /^(?=.*\d).{6,}$/;
+    if (!passwordRegex.test(password)) {
+      newErrors.password = 'Password must be at least 6 characters with 1 number';
+    }
+  
+    setErrors(newErrors);
+  
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleConnect = async () => {
@@ -184,10 +207,27 @@ export default function App() {
               <p className="text-sm text-slate-500">Enter your details to continue.</p>
             </div>
             <div className="w-full space-y-4 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <input type="email" placeholder="Email" className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
-              <input type="password" placeholder="Password" className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <input
+  type="email"
+  placeholder="Email"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+/>
+{errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
+
+<input
+  type="password"
+  placeholder="Password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+/>
+{errors.password && <p className="text-red-500 text-xs">{errors.password}</p>}
               <button
                 onClick={() => {
+                  if (!validateAuth()) return;
+                
                   if (state === 'login') {
                     setState('data_source');
                   } else {
