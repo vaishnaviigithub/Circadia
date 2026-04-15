@@ -1,73 +1,150 @@
-# React + TypeScript + Vite
+# Circadia - Personalized Circadian Rhythm Profiling
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
+**Circadia** is an AI-powered mobile health system designed to analyze human circadian rhythms using non-medical behavioral data such as sleep timing, screen usage, and physical activity.
+The system identifies chronotype, detects circadian disruptions, and provides personalized lifestyle recommendations to improve biological alignment and overall health.
 
-Currently, two official plugins are available:
+---
+## Key Features
+* **Circadian Profiling**
+  * Chronotype classification (Morning / Intermediate / Evening)
+  * Infographics on sleep, activity and sleep time
+  * Recomendations to improve health
+    
+*  **Advanced Analytics**
+  * Non-Parametric Circadian Rhythm Analysis (NPCRA)
+  * Acrophase (peak activity timing)
+  * Relative Amplitude (RA)
+  * Sleep debt calculation
+    
+*  **Deviation Detection**
+  * Sleep timing inconsistency
+  * Late-night screen exposure
+  * Activity rhythm disruptions
+  * Circadian amplitude decline
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* **AI Recommendations**
+  * Personalized lifestyle suggestions using Google Gemini API
+  * Categorized into Sleep, Light, Activity, Nutrition, and Schedule
 
-## React Compiler
+* **Interactive Dashboard**
+  * 24-hour circadian rhythm visualization
+  * Weekly sleep/activity trends
+  * Screen usage patterns
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## System Architecture
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The system follows a **client-server architecture**:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 1. Frontend (Mobile App)
+* Built with **React 19 + TypeScript**
+* Collects:
+  * Activity data (accelerometer)
+  * Screen usage
+  * Sleep timing
+* Displays:
+  * Charts (Recharts, D3.js)
+  * Recommendations
+  * Circadian insights
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 2. Backend
+* Built using **FastAPI**
+* Handles:
+  * Data preprocessing
+  * Feature extraction
+  * Circadian modeling
+  * AI recommendation integration
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 3. Database
+* **MongoDB**
+* Stores:
+  * Raw sensor data
+  * Processed circadian features
+
+---
+
+## Data Pipeline
+1. **Data Collection**
+   * 15-minute epoch intervals
+   * Inputs:
+     * ActivityLevel (0–100)
+     * Screen status (0/1)
+     * Sleep & wake times
+
+2. **Preprocessing**
+   * Min-max normalization
+   * Hourly aggregation
+   * Midnight crossover correction
+
+3. **Feature Extraction**
+   * MSFsc (chronotype)
+   * Social Jetlag
+   * NPCRA metrics (IS, IV, RA)
+   * Sleep debt
+   * Screen-sleep correlation
+
+4. **Analysis**
+   * Baseline modeling
+   * Z-score based anomaly detection
+
+---
+
+## Core Concepts
+* **Chronotype** → Biological sleep preference
+* **Acrophase** → Peak activity time
+* **Relative Amplitude (RA)** → Strength of circadian rhythm
+* **Sleep Regularity Score (SRS)** → Consistency of sleep timing
+
+---
+
+## 🧪 Example Outputs
+* Chronotype classification (e.g., Evening Type)
+* Social Jetlag (e.g., 2.1 hours → Moderate)
+* Sleep Regularity Score (e.g., 72 → Good)
+* AI Suggestions:
+  * Reduce screen usage after 10 PM
+  * Morning light exposure
+  * Fixed sleep schedule
+
+---
+
+## Installation (Basic)
+
+```bash
+# Clone repo
+git clone https://github.com/your-username/circadia.git
+
+# Install frontend
+cd frontend
+npm install
+npm run dev
+
+# Install backend
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Future Enhancements
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+* Wearable integration (Apple Watch, Fitbit, Oura)
+* Real-time circadian prediction using deep learning
+* Clinical validation with DLMO studies
+  
+---
+
+## Applications
+* Sleep health monitoring
+* Lifestyle optimization
+* Preventive healthcare
+* Chronotherapy support
+
+---
+
+## License
+
+“Copyright © 2026 Vaishnavi Chada, Krushi Kavuri, and Nidhi Theegalapalli. All rights reserved. This project is intended for academic and research purposes only.”
